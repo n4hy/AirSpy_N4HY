@@ -1,1 +1,5 @@
+# Local Python environment
+.airspyvenv/
 
+# GRC-generated flowgraph source (regenerate with: grcc airspy_scan.grc)
+airspy_scan.py

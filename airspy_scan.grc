@@ -1,0 +1,291 @@
+options:
+  parameters:
+    author: n4hy
+    catch_exceptions: 'True'
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: Swept spectrum scanner for AirSpy R2, ALF to AHF in decimal MHz,
+      displayed on the GPU-accelerated fosphor sink.
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: airspy_scan
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: AirSpy Scanner (ALF - AHF)
+    window_size: (1600,1000)
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [8, 8]
+    rotation: 0
+    state: enabled
+
+blocks:
+
+# ---------------- constants ----------------
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: 'AirSpy R2 supports ONLY 10e6 and 2.5e6 sps. No other value is legal.'
+    value: '10e6'
+  states:
+    coordinate: [8, 140]
+    rotation: 0
+    state: enabled
+
+- name: overlap
+  id: variable
+  parameters:
+    comment: 'Step = overlap * samp_rate. <1.0 overlaps slices so the analog filter
+      roll-off at the slice edges does not leave gaps.'
+    value: '0.8'
+  states:
+    coordinate: [136, 140]
+    rotation: 0
+    state: enabled
+
+# ---------------- sweep range: ALF / AHF in decimal MHz ----------------
+- name: alf_mhz
+  id: variable_qtgui_range
+  parameters:
+    gui_hint: '6,0,1,2'
+    label: ALF  sweep low edge (MHz)
+    min_len: '250'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '24.0'
+    step: '0.1'
+    stop: '1800.0'
+    value: '24.0'
+    widget: counter_slider
+  states:
+    coordinate: [8, 236]
+    rotation: 0
+    state: enabled
+
+- name: ahf_mhz
+  id: variable_qtgui_range
+  parameters:
+    gui_hint: '6,2,1,2'
+    label: AHF  sweep high edge (MHz)
+    min_len: '250'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '24.0'
+    step: '0.1'
+    stop: '1800.0'
+    value: '1800.0'
+    widget: counter_slider
+  states:
+    coordinate: [200, 236]
+    rotation: 0
+    state: enabled
+
+- name: dwell_s
+  id: variable_qtgui_range
+  parameters:
+    gui_hint: '7,0,1,2'
+    label: Dwell per slice (s)
+    min_len: '250'
+    orient: QtCore.Qt.Horizontal
+    rangeType: float
+    start: '0.02'
+    step: '0.01'
+    stop: '2.0'
+    value: '0.2'
+    widget: counter_slider
+  states:
+    coordinate: [392, 236]
+    rotation: 0
+    state: enabled
+
+- name: sweep_en
+  id: variable_qtgui_check_box
+  parameters:
+    'false': '0'
+    gui_hint: '7,2,1,1'
+    label: Sweep running (uncheck to hold)
+    'true': '1'
+    type: int
+    value: '1'
+  states:
+    coordinate: [584, 236]
+    rotation: 0
+    state: enabled
+
+# ---------------- gains: AirSpy R2 has three 0-15 dB stages ----------------
+- name: lna_gain
+  id: variable_qtgui_range
+  parameters:
+    gui_hint: '8,0,1,1'
+    label: LNA gain (dB)
+    min_len: '150'
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '15'
+    value: '12'
+    widget: counter_slider
+  states:
+    coordinate: [8, 340]
+    rotation: 0
+    state: enabled
+
+- name: mix_gain
+  id: variable_qtgui_range
+  parameters:
+    gui_hint: '8,1,1,1'
+    label: MIX gain (dB)
+    min_len: '150'
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '15'
+    value: '12'
+    widget: counter_slider
+  states:
+    coordinate: [168, 340]
+    rotation: 0
+    state: enabled
+
+- name: vga_gain
+  id: variable_qtgui_range
+  parameters:
+    gui_hint: '8,2,1,1'
+    label: VGA gain (dB)
+    min_len: '150'
+    rangeType: int
+    start: '0'
+    step: '1'
+    stop: '15'
+    value: '10'
+    widget: counter_slider
+  states:
+    coordinate: [328, 340]
+    rotation: 0
+    state: enabled
+
+# ---------------- source ----------------
+- name: osmosdr_source_0
+  id: osmosdr_source
+  parameters:
+    ant0: '""'
+    args: '"airspy=0"'
+    bb_gain0: vga_gain
+    bw0: '0'
+    corr0: '0'
+    dc_offset_mode0: '0'
+    freq0: 24e6 + samp_rate/2
+    gain0: lna_gain
+    gain_mode0: 'False'
+    if_gain0: mix_gain
+    iq_balance_mode0: '0'
+    nchan: '1'
+    num_mboards: '1'
+    sample_rate: samp_rate
+    sync: sync
+    type: fc32
+  states:
+    coordinate: [200, 452]
+    rotation: 0
+    state: enabled
+
+# ---------------- GPU-accelerated display ----------------
+- name: fosphor_qt_sink_c_0
+  id: fosphor_qt_sink_c
+  parameters:
+    freq_center: 24e6 + samp_rate/2
+    freq_span: samp_rate
+    gui_hint: '0,0,6,4'
+    wintype: window.WIN_BLACKMAN_hARRIS
+  states:
+    coordinate: [688, 468]
+    rotation: 0
+    state: enabled
+
+# ---------------- sweep controller ----------------
+- name: sweep_start
+  id: snippet
+  parameters:
+    priority: '0'
+    section: main_after_start
+    code: |
+      import math
+      import threading
+
+      # AirSpy R2 tuning limits, as reported by the device itself
+      # (SoapySDRUtil --probe="driver=airspy": Full freq range [24, 1800] MHz).
+      _F_MIN = 24e6
+      _F_MAX = 1800e6
+
+      def _plan(tb):
+          """Centre frequencies covering [ALF, AHF], recomputed every hop so
+          that moving the ALF/AHF sliders takes effect immediately."""
+          lo_mhz, hi_mhz = sorted((float(tb.alf_mhz), float(tb.ahf_mhz)))
+          sr = float(tb.samp_rate)
+          lo = max(lo_mhz * 1e6, _F_MIN)
+          hi = min(hi_mhz * 1e6, _F_MAX)
+          if hi - lo <= sr:
+              return [0.5 * (lo + hi)]
+          stepsz = max(sr * float(tb.overlap), 1.0)
+          n = int(math.ceil((hi - lo - sr) / stepsz)) + 1
+          return [min(lo + sr / 2.0 + k * stepsz, hi - sr / 2.0)
+                  for k in range(n)]
+
+      def _sweeper(tb):
+          idx = 0
+          while not tb._sweep_stop.is_set():
+              if int(tb.sweep_en) == 0:
+                  tb._sweep_stop.wait(0.1)
+                  continue
+              centers = _plan(tb)
+              fc = centers[idx % len(centers)]
+              idx += 1
+              tb.osmosdr_source_0.set_center_freq(fc, 0)
+              tb.fosphor_qt_sink_c_0.set_frequency_range(fc, float(tb.samp_rate))
+              tb._sweep_stop.wait(max(float(tb.dwell_s), 0.02))
+
+      self._sweep_stop = threading.Event()
+      self._sweep_thread = threading.Thread(target=_sweeper, args=(self,))
+      self._sweep_thread.daemon = True
+      self._sweep_thread.start()
+  states:
+    coordinate: [688, 236]
+    rotation: 0
+    state: enabled
+
+- name: sweep_stop
+  id: snippet
+  parameters:
+    priority: '0'
+    section: main_after_stop
+    code: |
+      try:
+          self._sweep_stop.set()
+          self._sweep_thread.join(timeout=2.0)
+      except AttributeError:
+          pass
+  states:
+    coordinate: [880, 236]
+    rotation: 0
+    state: enabled
+
+connections:
+- [osmosdr_source_0, '0', fosphor_qt_sink_c_0, '0']
+
+metadata:
+  file_format: 1
+  grc_version: 3.10.9.2
