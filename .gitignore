@@ -3,3 +3,7 @@
 
 # GRC-generated flowgraph source (regenerate with: grcc airspy_scan.grc)
 airspy_scan.py
+
+# Debug harness output (tools/grc-valgrind.sh, tools/grc-debug.sh)
+grc-valgrind.log
+grc-crash.log
