@@ -218,3 +218,14 @@ Verified on Ubuntu 24.04.4 LTS, GNU Radio 3.10.9.2, AirSpy R2:
 
 Long-run stability and sensitivity across the full range have not been
 characterised.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+That covers this repository's own contents: the flowgraph, `install.sh` and the
+`tools/` scripts. It does **not** relax the obligations of the software this
+depends on. GNU Radio and gr-osmosdr are GPL-3.0, and the Python that `grcc`
+generates from `airspy_scan.grc` links against both at runtime, so anything you
+distribute built from that generated flowgraph carries GPL-3.0 obligations
+regardless of the licence on the `.grc` itself.
