@@ -424,12 +424,17 @@ blocks:
                           if ok.any():
                               gi, vi = g[ok], frame[ok]
                               if self._fresh:
-                                  # first frame of this dwell: replace, so the
-                                  # bin shows the newest measurement
-                                  self._spec[gi] = np.maximum(vi, self._floor)
+                                  # First frame of this dwell: refresh the slice
+                                  # so the bins show the newest measurement.
+                                  # Many FFT bins land on one display bin (~43
+                                  # of them at 10 MSPS across the full range),
+                                  # so gi holds duplicates. A fancy-index
+                                  # assignment would be last-wins and would
+                                  # erase a peak with whatever bin was written
+                                  # last; reduce with maximum.at instead.
+                                  self._spec[gi] = self._floor
                                   self._fresh = False
-                              else:
-                                  np.maximum.at(self._spec, gi, vi)
+                              np.maximum.at(self._spec, gi, vi)
                   np.maximum(self._spec, self._floor, out=self._spec)
                   out[:] = self._spec
               return len(out)

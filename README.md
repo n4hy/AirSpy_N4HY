@@ -140,12 +140,16 @@ details matter:
   previous slice's energy under the new centre-frequency label, placing signals
   at frequencies where they are not. The first 2 frames after each retune are
   discarded.
-- **No floor holes.** The vector starts at `ymin_db` and each dwell *overwrites*
-  its own bins on its first accepted frame, then max-holds within that dwell. A
-  bin always carries the newest measurement of that frequency and never drops
-  off the bottom of the plot. (An earlier version cleared each slice to −160 dB
-  on retune, which drew vertical spikes wherever a slice was unpainted or
-  mid-refresh.)
+- **No floor holes.** The vector starts at `ymin_db`. On the first accepted
+  frame of a dwell the slice's bins are refreshed to that floor, then every
+  frame of the dwell is max-reduced into them. A bin therefore carries the
+  newest measurement of its frequency and never drops off the bottom of the
+  plot. (An earlier version cleared each slice to −160 dB on retune, which drew
+  vertical spikes wherever a slice was unpainted or mid-refresh.)
+- **Max-reduction, not assignment.** About 43 FFT bins fall in one display bin
+  at 10 MSPS across the full range, so the slice's index array holds duplicates.
+  `spec[idx] = values` would be last-wins and would erase a peak with whatever
+  bin happened to be written last; `np.maximum.at` reduces instead.
 
 ## Troubleshooting
 
@@ -185,6 +189,25 @@ The source is producing faster than the graph consumes. Raise the dwell, or drop
 `samp_rate` to `2.5e6` — but remember only **10e6 and 2.5e6** are legal for this
 radio.
 
+## Tests
+
+No radio required. The suite generates the flowgraph with `grcc` into a temp
+directory and tests the generated code, so it exercises what actually ships
+rather than a copy of the logic.
+
+```bash
+tests/run_tests.sh
+```
+
+| file | what it checks |
+|---|---|
+| `tests/test_sweep_plan.py` | Lifts the real `_plan()` out of the generated flowgraph and checks ALF..AHF is covered with no gaps and no out-of-band tuning — full range, narrow spans, band edges, inverted ALF/AHF, and both legal sample rates. |
+| `tests/test_painter.py` | Imports the generated painter block: tone frequency mapping, band-edge rejection, tuner settling, the no-floor-holes behaviour, dwell refresh vs max-hold, and full-sweep coverage. |
+| `tests/test_gui.py` | Instantiates the hardware-free clone under an offscreen Qt platform and reads the real widget text for the ALF/AHF captions and readouts. |
+
+`tools/hw_free_clone.py` builds that clone by swapping the osmocom Source for a
+signal source and a throttle, leaving every other block as shipped.
+
 ## Repository layout
 
 | Path | |
@@ -215,6 +238,10 @@ Verified on Ubuntu 24.04.4 LTS, GNU Radio 3.10.9.2, AirSpy R2:
 - tuner-settling frames are discarded; revisiting a slice replaces its old
   values rather than holding a stale peak
 - ALF/AHF readouts stay truthful when the sliders are dragged past each other
+- display bins are max-reduced, not overwritten. Roughly 43 FFT bins land on
+  one display bin at 10 MSPS across the full range, so the slice's indices
+  contain duplicates; an earlier version used a fancy-index assignment, which
+  is last-wins and erased peaks. The test suite catches this.
 
 Long-run stability and sensitivity across the full range have not been
 characterised.
