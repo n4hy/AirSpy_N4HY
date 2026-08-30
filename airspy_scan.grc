@@ -6,8 +6,9 @@ options:
     cmake_opt: ''
     comment: ''
     copyright: ''
-    description: Swept spectrum scanner for AirSpy R2, ALF to AHF in decimal MHz,
-      displayed on the GPU-accelerated fosphor sink.
+    description: Swept spectrum scanner for AirSpy R2. Each dwell's FFT is
+      painted onto one fixed frequency axis running ALF (left) to AHF (right),
+      in decimal MHz, with a fixed dB scale. Controls along the bottom.
     gen_cmake: 'On'
     gen_linking: dynamic
     generate_options: qt_gui
@@ -46,6 +47,57 @@ blocks:
     rotation: 0
     state: enabled
 
+- name: fft_size
+  id: variable
+  parameters:
+    comment: 'FFT bins per 10 MHz slice. Must match the stitcher vlen default.'
+    value: '1024'
+  states:
+    coordinate: [264, 140]
+    rotation: 0
+    state: enabled
+
+- name: nbins
+  id: variable
+  parameters:
+    comment: 'Bins across the whole ALF..AHF axis. Must match stitcher nbins default.'
+    value: '4096'
+  states:
+    coordinate: [392, 140]
+    rotation: 0
+    state: enabled
+
+- name: frame_rate
+  id: variable
+  parameters:
+    comment: 'logpwrfft frames/s. At 0.2 s dwell this gives ~10 frames per slice.'
+    value: '50'
+  states:
+    coordinate: [520, 140]
+    rotation: 0
+    state: enabled
+
+- name: ymin_db
+  id: variable
+  parameters:
+    comment: 'Bottom of the graph. Also the level unswept bins sit at, so the
+      trace starts flat along the bottom instead of spiking to a floor.'
+    value: '-120'
+  states:
+    coordinate: [648, 140]
+    rotation: 0
+    state: enabled
+
+- name: ymax_db
+  id: variable
+  parameters:
+    comment: 'Top of the graph.'
+    value: '0'
+  states:
+    coordinate: [776, 140]
+    rotation: 0
+    state: enabled
+
 - name: overlap
   id: variable
   parameters:
@@ -57,12 +109,37 @@ blocks:
     rotation: 0
     state: enabled
 
+# ---------------- ALF / AHF readouts ----------------
+- name: alf_readout
+  id: variable_qtgui_label
+  parameters:
+    gui_hint: '8,0,1,2'
+    label: 'ALF   scan LOW frequency'
+    type: string
+    value: "'%.3f MHz' % min(alf_mhz, ahf_mhz)"
+  states:
+    coordinate: [8, 188]
+    rotation: 0
+    state: enabled
+
+- name: ahf_readout
+  id: variable_qtgui_label
+  parameters:
+    gui_hint: '8,2,1,2'
+    label: 'AHF   scan HIGH frequency'
+    type: string
+    value: "'%.3f MHz' % max(alf_mhz, ahf_mhz)"
+  states:
+    coordinate: [200, 188]
+    rotation: 0
+    state: enabled
+
 # ---------------- sweep range: ALF / AHF in decimal MHz ----------------
 - name: alf_mhz
   id: variable_qtgui_range
   parameters:
-    gui_hint: '6,0,1,2'
-    label: ALF  sweep low edge (MHz)
+    gui_hint: '9,0,1,2'
+    label: ALF  -  scan LOW frequency (MHz)
     min_len: '250'
     orient: QtCore.Qt.Horizontal
     rangeType: float
@@ -79,8 +156,8 @@ blocks:
 - name: ahf_mhz
   id: variable_qtgui_range
   parameters:
-    gui_hint: '6,2,1,2'
-    label: AHF  sweep high edge (MHz)
+    gui_hint: '9,2,1,2'
+    label: AHF  -  scan HIGH frequency (MHz)
     min_len: '250'
     orient: QtCore.Qt.Horizontal
     rangeType: float
@@ -97,7 +174,7 @@ blocks:
 - name: dwell_s
   id: variable_qtgui_range
   parameters:
-    gui_hint: '7,0,1,2'
+    gui_hint: '10,0,1,2'
     label: Dwell per slice (s)
     min_len: '250'
     orient: QtCore.Qt.Horizontal
@@ -116,7 +193,7 @@ blocks:
   id: variable_qtgui_check_box
   parameters:
     'false': '0'
-    gui_hint: '7,2,1,1'
+    gui_hint: '10,2,1,2'
     label: Sweep running (uncheck to hold)
     'true': '1'
     type: int
@@ -130,7 +207,7 @@ blocks:
 - name: lna_gain
   id: variable_qtgui_range
   parameters:
-    gui_hint: '8,0,1,1'
+    gui_hint: '11,0,1,1'
     label: LNA gain (dB)
     min_len: '150'
     rangeType: int
@@ -147,7 +224,7 @@ blocks:
 - name: mix_gain
   id: variable_qtgui_range
   parameters:
-    gui_hint: '8,1,1,1'
+    gui_hint: '11,1,1,1'
     label: MIX gain (dB)
     min_len: '150'
     rangeType: int
@@ -164,7 +241,7 @@ blocks:
 - name: vga_gain
   id: variable_qtgui_range
   parameters:
-    gui_hint: '8,2,1,1'
+    gui_hint: '11,2,1,1'
     label: VGA gain (dB)
     min_len: '150'
     rangeType: int
@@ -203,16 +280,206 @@ blocks:
     rotation: 0
     state: enabled
 
-# ---------------- GPU-accelerated display ----------------
-- name: fosphor_qt_sink_c_0
-  id: fosphor_qt_sink_c
+# ---------------- full-span stitched scan (static ALF..AHF axis) ----------------
+- name: logpwrfft_x_0
+  id: logpwrfft_x
   parameters:
-    freq_center: 24e6 + samp_rate/2
-    freq_span: samp_rate
-    gui_hint: '0,0,6,4'
-    wintype: window.WIN_BLACKMAN_hARRIS
+    average: 'False'
+    avg_alpha: '1.0'
+    fft_size: fft_size
+    frame_rate: frame_rate
+    ref_scale: '2'
+    sample_rate: samp_rate
+    shift: 'True'
+    type: complex
   states:
-    coordinate: [688, 468]
+    coordinate: [440, 560]
+    rotation: 0
+    state: enabled
+
+- name: stitcher
+  id: epy_block
+  parameters:
+    alf_hz: min(alf_mhz, ahf_mhz) * 1e6
+    ahf_hz: max(alf_mhz, ahf_mhz) * 1e6
+    floor_db: ymin_db
+    nbins: nbins
+    samp_rate: samp_rate
+    settle: '2'
+    vlen: fft_size
+    _source_code: |
+      """Paint each dwell's FFT onto a fixed ALF..AHF frequency axis.
+
+      The radio sees only samp_rate Hz at a time, so a graph spanning
+      ALF..AHF is painted one dwell at a time. Each logpwrfft frame arrives
+      fftshifted (shift=True on the FFT block), so its bin 0 is
+      centre - samp_rate/2; those bins are written to their true position in
+      a fixed nbins-wide vector whose index 0 is ALF and index nbins-1 AHF.
+
+      Bins are never dropped to a deep floor. An earlier version cleared each
+      slice to -160 dB on retune, which drew vertical spikes down off the
+      graph wherever a slice had not yet been painted or was mid-refresh.
+      Instead the vector starts at floor_db (the bottom of the graph, so the
+      opening trace is flat along the axis) and each dwell OVERWRITES its own
+      bins on its first accepted frame, then max-holds within that dwell.
+      A bin therefore always carries the most recent measurement of that
+      frequency and never falls through the floor of the plot.
+
+      Frames captured while the tuner is still settling would carry the old
+      slice's energy under the new centre label, placing signals at
+      frequencies where they are not, so `settle` frames are discarded after
+      every retune.
+      """
+
+      import threading
+
+      import numpy as np
+      from gnuradio import gr
+
+
+      class blk(gr.sync_block):
+          """Scan Painter: dwell FFTs -> fixed ALF..AHF axis"""
+
+          def __init__(self, vlen=1024, nbins=4096, alf_hz=24e6,
+                       ahf_hz=1800e6, samp_rate=10e6, settle=2,
+                       floor_db=-120.0):
+              gr.sync_block.__init__(
+                  self,
+                  name='Scan Painter',
+                  in_sig=[(np.float32, vlen)],
+                  out_sig=[(np.float32, nbins)],
+              )
+              self.vlen = int(vlen)
+              self.nbins = int(nbins)
+              self.samp_rate = float(samp_rate)
+              self.settle = int(settle)
+              self._floor = float(floor_db)
+              self._lock = threading.Lock()
+              self._alf = float(alf_hz)
+              self._ahf = float(ahf_hz)
+              self._center = None
+              self._pending = None
+              self._skip = 0
+              self._fresh = False
+              self._spec = np.full(self.nbins, self._floor, dtype=np.float32)
+
+          def set_center(self, fc):
+              """Called from the sweep thread each time the LO moves."""
+              with self._lock:
+                  self._pending = float(fc)
+
+          @property
+          def floor_db(self):
+              return self._floor
+
+          @floor_db.setter
+          def floor_db(self, value):
+              with self._lock:
+                  self._floor = float(value)
+
+          @property
+          def alf_hz(self):
+              return self._alf
+
+          @alf_hz.setter
+          def alf_hz(self, value):
+              with self._lock:
+                  self._alf = float(value)
+                  self._spec[:] = self._floor
+
+          @property
+          def ahf_hz(self):
+              return self._ahf
+
+          @ahf_hz.setter
+          def ahf_hz(self, value):
+              with self._lock:
+                  self._ahf = float(value)
+                  self._spec[:] = self._floor
+
+          def _slice_bins(self, fc, lo, step):
+              """Global bin index for each of this slice's vlen FFT bins."""
+              binw = self.samp_rate / self.vlen
+              f = fc - self.samp_rate / 2.0 + np.arange(self.vlen) * binw
+              g = np.floor((f - lo) / step).astype(np.int64)
+              ok = (g >= 0) & (g < self.nbins)
+              return g, ok
+
+          def work(self, input_items, output_items):
+              out = output_items[0]
+              with self._lock:
+                  lo = min(self._alf, self._ahf)
+                  hi = max(self._alf, self._ahf)
+                  step = (hi - lo) / self.nbins if self.nbins else 0.0
+                  for frame in input_items[0]:
+                      if self._pending is not None:
+                          self._center = self._pending
+                          self._pending = None
+                          self._skip = self.settle
+                          self._fresh = True
+                      if self._skip > 0:
+                          self._skip -= 1
+                      elif self._center is not None and step > 0.0:
+                          g, ok = self._slice_bins(self._center, lo, step)
+                          if ok.any():
+                              gi, vi = g[ok], frame[ok]
+                              if self._fresh:
+                                  # first frame of this dwell: replace, so the
+                                  # bin shows the newest measurement
+                                  self._spec[gi] = np.maximum(vi, self._floor)
+                                  self._fresh = False
+                              else:
+                                  np.maximum.at(self._spec, gi, vi)
+                  np.maximum(self._spec, self._floor, out=self._spec)
+                  out[:] = self._spec
+              return len(out)
+  states:
+    coordinate: [688, 560]
+    rotation: 0
+    state: enabled
+
+# ---------------- single display: FFT on a fixed ALF..AHF axis ----------------
+- name: qtgui_vector_sink_f_0
+  id: qtgui_vector_sink_f
+  parameters:
+    autoscale: 'False'
+    grid: 'True'
+    gui_hint: '0,0,8,4'
+    legend: 'False'
+    name: '""'
+    ref_level: '0'
+    update_time: '0.05'
+    vlen: nbins
+    x_axis_label: '"Frequency"'
+    x_start: min(alf_mhz, ahf_mhz)
+    x_step: (max(alf_mhz, ahf_mhz) - min(alf_mhz, ahf_mhz)) / nbins
+    x_units: '"MHz"'
+    y_axis_label: '"Power"'
+    y_units: '"dB"'
+    ymax: ymax_db
+    ymin: ymin_db
+  states:
+    coordinate: [936, 560]
+    rotation: 0
+    state: enabled
+
+# ---------------- window layout ----------------
+# GRC 3.10.9.2 emits no resize() for the options block's window_size, so the
+# window falls back to restoreGeometry() (empty on first run) and then to the
+# layout size hint. Inside the generated QScrollArea (setWidgetResizable(True))
+# a plot widget's size hint alone lets the window collapse -- measured at
+# 270x166 with no fix, 1628x1066 with it. Runs at main_after_init, before
+# start() and show().
+- name: layout_fix
+  id: snippet
+  parameters:
+    priority: '0'
+    section: main_after_init
+    code: |
+      self._qtgui_vector_sink_f_0_win.setMinimumSize(900, 550)
+      self.resize(1600, 1000)
+  states:
+    coordinate: [880, 340]
     rotation: 0
     state: enabled
 
@@ -255,7 +522,7 @@ blocks:
               fc = centers[idx % len(centers)]
               idx += 1
               tb.osmosdr_source_0.set_center_freq(fc, 0)
-              tb.fosphor_qt_sink_c_0.set_frequency_range(fc, float(tb.samp_rate))
+              tb.stitcher.set_center(fc)
               tb._sweep_stop.wait(max(float(tb.dwell_s), 0.02))
 
       self._sweep_stop = threading.Event()
@@ -284,7 +551,9 @@ blocks:
     state: enabled
 
 connections:
-- [osmosdr_source_0, '0', fosphor_qt_sink_c_0, '0']
+- [osmosdr_source_0, '0', logpwrfft_x_0, '0']
+- [logpwrfft_x_0, '0', stitcher, '0']
+- [stitcher, '0', qtgui_vector_sink_f_0, '0']
 
 metadata:
   file_format: 1

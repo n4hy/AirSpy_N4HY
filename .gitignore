@@ -1,8 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+
 # Local Python environment
 .airspyvenv/
 
 # GRC-generated flowgraph source (regenerate with: grcc airspy_scan.grc)
 airspy_scan.py
+airspy_scan_stitcher.py
 
 # Debug harness output (tools/grc-valgrind.sh, tools/grc-debug.sh)
 grc-valgrind.log
