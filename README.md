@@ -66,8 +66,8 @@ it is a different device with a different tuning range and needs the
 ## Quick start
 
 ```bash
-git clone https://github.com/n4hy/AirSpy.git
-cd AirSpy
+git clone https://github.com/n4hy/AirSpy_N4HY.git
+cd AirSpy_N4HY
 ./install.sh                       # installs deps, builds the venv, verifies
 source .airspyvenv/bin/activate
 gnuradio-companion airspy_scan.grc # opens the editor; press Run (F6)
